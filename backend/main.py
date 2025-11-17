@@ -53,12 +53,19 @@ active_connections: dict[str, WebSocket] = {}
 # Health check
 @app.get("/health")
 async def health():
+    agent_status = code_agent.get_status()
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
-        "agent": "ready",
+        "agent": agent_status,
         "version": "1.0.0"
     }
+
+# Agent status endpoint
+@app.get("/api/agent-status")
+async def agent_status_endpoint():
+    """Get agent status and OLLAMA availability"""
+    return code_agent.get_status()
 
 # API Routes
 
