@@ -1,0 +1,120 @@
+# AI Code Agent Configuration
+
+# Agent Settings
+agent:
+  # AI Model to use
+  model: "neural-chat"  # Options: neural-chat, codellama, mistral
+
+  # Response speed (1-10, higher = faster)
+  response_speed: 5
+
+  # Maximum conversation history
+  max_history: 20
+
+  # Supported languages
+  supported_languages:
+    - python
+    - javascript
+    - typescript
+    - java
+    - cpp
+    - c
+    - go
+    - rust
+    - sql
+    - html
+    - css
+
+# Security Settings
+security:
+  # Require user approval for sensitive operations
+  require_approval: true
+
+  # Run code in sandbox
+  sandbox_code: true
+
+  # Log all operations
+  audit_logging: true
+
+  # Allowed file operations
+  allowed_actions:
+    - read_files
+    - analyze_code
+    - capture_screen
+
+  # Dangerous keywords to block
+  dangerous_keywords:
+    - "rm -rf"
+    - "del /s /q"
+    - "drop database"
+    - "truncate table"
+    - "chmod 777"
+    - "sudo"
+
+# UI Settings
+ui:
+  # Theme: light or dark
+  theme: "light"
+
+  # Enable syntax highlighting
+  syntax_highlighting: true
+
+  # Auto-save chat history
+  auto_save_history: true
+
+  # Chat history retention (days)
+  history_retention: 30
+
+# API Settings
+api:
+  # Backend host and port
+  host: "localhost"
+  port: 8000
+
+  # API base URL
+  base_url: "http://localhost:8000/api"
+
+  # WebSocket URL
+  ws_url: "ws://localhost:8000/ws/agent"
+
+# Analysis Settings
+analysis:
+  # Code quality threshold
+  quality_threshold: 60
+
+  # Issue severity levels to report
+  report_severities:
+    - critical
+    - warning
+    - info
+
+  # Maximum lines to analyze at once
+  max_lines: 100000
+
+# Screen Capture Settings
+screen:
+  # Enable screen capture
+  enabled: true
+
+  # Capture frequency (seconds)
+  capture_interval: 5
+
+  # Image quality (1-100)
+  quality: 85
+
+  # Enable OCR for text detection
+  enable_ocr: true
+
+# Logging Settings
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Log file location
+  file: "logs/codeagent.log"
+
+  # Maximum log file size (MB)
+  max_size: 10
+
+  # Number of backup log files
+  backup_count: 5
