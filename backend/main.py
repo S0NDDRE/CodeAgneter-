@@ -15,8 +15,23 @@ class Msg(BaseModel):
 def ask(data: Msg):
     """Send message to OLLAMA"""
     try:
+        # Try to get first available model
+        list_result = subprocess.run(
+            "ollama list",
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        model = "mistral"  # default
+        if list_result.returncode == 0:
+            lines = list_result.stdout.strip().split('\n')
+            if len(lines) > 1:
+                model = lines[1].split()[0]  # Get first model name
+
         result = subprocess.run(
-            f'ollama run mistral "{data.msg}"',
+            f'ollama run {model} "{data.msg}"',
             shell=True,
             capture_output=True,
             text=True,
