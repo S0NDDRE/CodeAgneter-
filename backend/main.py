@@ -15,6 +15,8 @@ from datetime import datetime
 
 from agent.core.agent import CodeAgent
 from agent.core.security import SecurityManager
+from agent.core.model_manager import ModelManager
+from agent.core.negotiation import NegotiationManager
 from agent.analysis.code_analyzer import CodeAnalyzer
 from agent.screen.screen_capture import ScreenCapture
 
@@ -46,6 +48,8 @@ code_agent = CodeAgent()
 security_manager = SecurityManager()
 code_analyzer = CodeAnalyzer()
 screen_capture = ScreenCapture()
+model_manager = ModelManager()
+negotiation_manager = NegotiationManager()
 
 # Store active websocket connections
 active_connections: dict[str, WebSocket] = {}
@@ -222,6 +226,151 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket error: {str(e)}")
     finally:
         del active_connections[connection_id]
+
+# Model Management Routes
+
+@app.get("/api/models")
+async def get_models():
+    """Get available OLLAMA models"""
+    return model_manager.get_models()
+
+@app.get("/api/models/popular")
+async def get_popular_models():
+    """Get popular models available for download"""
+    return {
+        "status": "ok",
+        "models": model_manager.get_popular_models()
+    }
+
+@app.post("/api/models/download")
+async def download_model(data: dict):
+    """Download a new OLLAMA model"""
+    try:
+        model_name = data.get("model_name")
+        if not model_name:
+            raise HTTPException(status_code=400, detail="model_name required")
+
+        result = await model_manager.download_model(model_name)
+        return result
+    except Exception as e:
+        logger.error(f"Download error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/models/switch")
+async def switch_model(data: dict):
+    """Switch to a different model"""
+    try:
+        model_name = data.get("model_name")
+        if not model_name:
+            raise HTTPException(status_code=400, detail="model_name required")
+
+        result = model_manager.switch_model(model_name)
+        if result["status"] == "success":
+            code_agent.model_name = model_name
+        return result
+    except Exception as e:
+        logger.error(f"Switch error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/api/models/{model_name}")
+async def delete_model(model_name: str):
+    """Delete a model"""
+    try:
+        result = await model_manager.delete_model(model_name)
+        return result
+    except Exception as e:
+        logger.error(f"Delete error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/models/status")
+async def model_status():
+    """Get model manager status"""
+    return model_manager.get_status()
+
+# Negotiation Routes
+
+@app.post("/api/negotiate/propose")
+async def propose_action(data: dict):
+    """Agent proposes an action for user approval"""
+    try:
+        session_id = data.get("session_id", f"session_{datetime.now().timestamp()}")
+        action_type = data.get("action_type")
+        description = data.get("description")
+        details = data.get("details", {})
+
+        result = negotiation_manager.propose_action(
+            session_id, action_type, description, details
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Propose error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/negotiate/respond")
+async def respond_to_proposal(data: dict):
+    """User responds to proposed action"""
+    try:
+        session_id = data.get("session_id")
+        response = data.get("response")
+
+        if not session_id or not response:
+            raise HTTPException(status_code=400, detail="session_id and response required")
+
+        result = negotiation_manager.handle_user_response(session_id, response)
+        return result
+    except Exception as e:
+        logger.error(f"Response error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/negotiate/execute")
+async def execute_agreed_action(data: dict):
+    """Execute agreed action"""
+    try:
+        session_id = data.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id required")
+
+        # Check permission first
+        session = negotiation_manager.get_session(session_id)
+        if not session or not session.agreed_action:
+            return {"status": "error", "message": "No agreed action found"}
+
+        action = session.agreed_action
+        if not security_manager.check_permission(action.get("type")):
+            return {"status": "error", "message": "Action not permitted"}
+
+        # Execute the action
+        exec_result = await code_agent.execute_action(action)
+
+        # Mark as completed
+        negotiation_manager.execute_action(session_id)
+
+        return {
+            "status": "success",
+            "execution": exec_result,
+            "message": "Action executed and completed!"
+        }
+    except Exception as e:
+        logger.error(f"Execute error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/negotiate/{session_id}")
+async def get_negotiation_status(session_id: str):
+    """Get negotiation session status"""
+    try:
+        result = negotiation_manager.get_session_status(session_id)
+        return result
+    except Exception as e:
+        logger.error(f"Status error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/negotiate/history")
+async def get_negotiation_history():
+    """Get negotiation history"""
+    return {
+        "status": "ok",
+        "history": negotiation_manager.get_history()
+    }
 
 # Root route
 @app.get("/")
