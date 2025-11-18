@@ -40,6 +40,10 @@
         async function send() {
             const msg = input.value.trim();
             if (!msg) return;
+            if (msg.length > 5000) {
+                alert('Message too long (max 5000 characters)');
+                return;
+            }
 
             // Show user message
             const userDiv = document.createElement('div');
@@ -71,11 +75,12 @@
                 chat.appendChild(botDiv);
             } catch (e) {
                 loadDiv.textContent = 'Error: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                input.focus();
             }
 
             chat.scrollTop = chat.scrollHeight;
-            btn.disabled = false;
-            input.focus();
         }
 
         input.addEventListener('keypress', (e) => {
