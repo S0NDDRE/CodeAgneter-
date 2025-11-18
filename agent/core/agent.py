@@ -1,6 +1,6 @@
 """
 Core AI Agent - Powered by OLLAMA Local LLM
-Smart Code Agent with Natural Language Understanding
+Smart Code Agent with Natural Language Understanding & Dialogue
 """
 
 import logging
@@ -10,6 +10,8 @@ from datetime import datetime
 import asyncio
 import requests
 import os
+
+from agent.core.dialogue_engine import DialogueEngine
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,9 @@ class CodeAgent:
         self.conversation_history = []
         self.max_history = 20
         self.ollama_available = False
+
+        # Dialogue Engine for smart conversations
+        self.dialogue_engine = DialogueEngine()
 
         # Check OLLAMA availability
         self._check_ollama()
