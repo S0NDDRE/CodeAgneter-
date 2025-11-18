@@ -1,15 +1,17 @@
 """
-AI Code Agent - Simple, Working FastAPI Backend
-Chat-focused, OLLAMA-powered, no bloat
+AI Code Agent - Simple, Bulletproof Backend
+Chat with OLLAMA, local only, no bloat
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import logging
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 # Setup logging
@@ -22,11 +24,11 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI
 app = FastAPI(
     title="AI Code Agent",
-    description="Simple AI Code Assistant",
+    description="Local AI Assistant",
     version="2.0"
 )
 
-# CORS
+# CORS - allow all for local use
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Models
+# Request/Response models
 class ChatRequest(BaseModel):
     message: str
     model: str = None
@@ -49,15 +51,12 @@ class ModelInfo(BaseModel):
     current: bool = False
 
 # Global state
-current_model = "mistral"  # Default model
+current_model = None
 available_models = []
+ollama_available = False
 
-# Initialize
-@app.on_event("startup")
-async def startup():
-    """Load available OLLAMA models on startup"""
-    global available_models, current_model
-
+def get_ollama_models():
+    """Get list of installed OLLAMA models"""
     try:
         result = subprocess.run(
             ["ollama", "list"],
@@ -67,134 +66,203 @@ async def startup():
         )
 
         if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')[1:]  # Skip header
-            available_models = []
-            for line in lines:
+            lines = result.stdout.strip().split('\n')
+            models = []
+            for line in lines[1:]:  # Skip header
                 if line.strip():
-                    model_name = line.split()[0]
-                    available_models.append(model_name)
+                    try:
+                        model_name = line.split()[0]
+                        models.append(model_name)
+                    except:
+                        pass
+            return models
+    except:
+        pass
 
-            if available_models:
-                current_model = available_models[0]
-                logger.info(f"✅ Found {len(available_models)} OLLAMA models: {available_models}")
-            else:
-                logger.warning("⚠️ No OLLAMA models found. Run: ollama pull mistral")
-        else:
-            logger.warning("⚠️ OLLAMA not responding. Make sure 'ollama serve' is running")
-    except Exception as e:
-        logger.warning(f"⚠️ Could not load OLLAMA models: {e}")
+    return []
+
+# Startup event
+@app.on_event("startup")
+async def startup():
+    """Initialize on startup"""
+    global current_model, available_models, ollama_available
+
+    logger.info("🚀 Starting AI Code Agent...")
+
+    # Try to get OLLAMA models
+    models = get_ollama_models()
+
+    if models:
+        available_models = models
+        current_model = models[0]
+        ollama_available = True
+        logger.info(f"✅ OLLAMA connected - {len(models)} models available")
+        for model in models:
+            logger.info(f"   - {model}")
+    else:
+        logger.warning("⚠️  OLLAMA not responding or no models installed")
+        logger.warning("   Make sure to run: ollama serve")
+        logger.warning("   And install a model: ollama pull mistral")
+        available_models = []
+        current_model = None
+        ollama_available = False
 
 # Routes
 
 @app.get("/")
 async def root():
-    """Redirect to dashboard"""
-    return {"message": "AI Code Agent - Open http://localhost:8000 in browser"}
-
-@app.get("/api/models", response_model=dict)
-async def get_models():
-    """Get available OLLAMA models"""
-    models = [
-        ModelInfo(name=m, current=(m == current_model))
-        for m in available_models
-    ]
-    return {
-        "models": models,
-        "current": current_model,
-        "status": "ok" if available_models else "no_models"
-    }
-
-@app.post("/api/models/select")
-async def select_model(body: dict):
-    """Switch to different model"""
-    global current_model
-    model_name = body.get("model")
-
-    if not model_name or model_name not in available_models:
-        raise HTTPException(status_code=400, detail="Invalid model")
-
-    current_model = model_name
-    logger.info(f"Switched to model: {current_model}")
-    return {"model": current_model, "status": "switched"}
-
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """Chat with OLLAMA AI"""
-
-    if not available_models:
-        raise HTTPException(
-            status_code=503,
-            detail="OLLAMA not available. Make sure 'ollama serve' is running and has models installed (ollama pull mistral)"
-        )
-
-    model = request.model or current_model
-    message = request.message.strip()
-
-    if not message:
-        raise HTTPException(status_code=400, detail="Empty message")
-
-    if len(message) > 5000:
-        raise HTTPException(status_code=400, detail="Message too long")
-
-    try:
-        # Call OLLAMA
-        result = subprocess.run(
-            ["ollama", "run", model, message],
-            capture_output=True,
-            text=True,
-            timeout=120  # 2 minute timeout
-        )
-
-        if result.returncode != 0:
-            logger.error(f"OLLAMA error: {result.stderr}")
-            raise HTTPException(status_code=500, detail="OLLAMA error")
-
-        response_text = result.stdout.strip()
-
-        if not response_text:
-            response_text = "I'm thinking... but got empty response from OLLAMA. Try again!"
-
-        return ChatResponse(
-            response=response_text,
-            model=model
-        )
-
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Response timeout - model taking too long")
-    except FileNotFoundError:
-        raise HTTPException(status_code=503, detail="OLLAMA not installed or not in PATH")
-    except Exception as e:
-        logger.error(f"Chat error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    """Serve the frontend"""
+    frontend_path = Path(__file__).parent.parent / "frontend" / "index.html"
+    if frontend_path.exists():
+        return FileResponse(frontend_path)
+    return {"message": "Open http://localhost:8000 in your browser"}
 
 @app.get("/api/health")
-async def health():
-    """Health check"""
-    ollama_ok = bool(available_models)
+async def health_check():
+    """Health check endpoint"""
     return {
-        "status": "ok" if ollama_ok else "degraded",
-        "ollama": "connected" if ollama_ok else "not_responding",
+        "status": "ok" if ollama_available else "degraded",
+        "ollama": "connected" if ollama_available else "offline",
         "models": available_models,
         "current_model": current_model
     }
 
-# Mount static files (frontend)
+@app.get("/api/models")
+async def get_models():
+    """Get available models"""
+    models = []
+    for m in available_models:
+        models.append({
+            "name": m,
+            "current": m == current_model
+        })
+
+    return {
+        "models": models,
+        "current": current_model,
+        "status": "ok" if ollama_available else "no_models"
+    }
+
+@app.post("/api/models/select")
+async def select_model(body: dict):
+    """Switch to a different model"""
+    global current_model
+
+    model_name = body.get("model")
+
+    if not model_name:
+        raise HTTPException(status_code=400, detail="No model specified")
+
+    if model_name not in available_models:
+        raise HTTPException(status_code=400, detail=f"Model not found: {model_name}")
+
+    current_model = model_name
+    logger.info(f"Switched to model: {current_model}")
+
+    return {
+        "model": current_model,
+        "status": "ok"
+    }
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    """Chat with OLLAMA"""
+
+    # Check OLLAMA is available
+    if not ollama_available or not current_model:
+        raise HTTPException(
+            status_code=503,
+            detail="OLLAMA not available. Run 'ollama serve' and 'ollama pull mistral'"
+        )
+
+    message = request.message.strip()
+    model = request.model or current_model
+
+    # Validate input
+    if not message:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if len(message) > 5000:
+        raise HTTPException(status_code=400, detail="Message too long (max 5000 chars)")
+
+    if model not in available_models:
+        raise HTTPException(status_code=400, detail=f"Model not available: {model}")
+
+    try:
+        logger.info(f"Chat request with model: {model}")
+
+        # Call OLLAMA - directly pass the command as a string for Windows compatibility
+        cmd = f'ollama run {model} "{message}"'
+
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        if result.returncode != 0:
+            error_msg = result.stderr.strip() or result.stdout.strip()
+            logger.error(f"OLLAMA error: {error_msg}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"OLLAMA error: {error_msg[:200]}"
+            )
+
+        response_text = result.stdout.strip()
+
+        if not response_text:
+            response_text = "OLLAMA gave no response. Try again."
+
+        return {
+            "response": response_text,
+            "model": model
+        }
+
+    except subprocess.TimeoutExpired:
+        logger.error("OLLAMA timeout")
+        raise HTTPException(
+            status_code=504,
+            detail="OLLAMA took too long (timeout)"
+        )
+    except FileNotFoundError:
+        logger.error("OLLAMA not found")
+        raise HTTPException(
+            status_code=503,
+            detail="OLLAMA not installed or not in PATH"
+        )
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error: {str(e)[:100]}"
+        )
+
+# Mount frontend static files
 frontend_path = Path(__file__).parent.parent / "frontend"
 if frontend_path.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="static")
     logger.info(f"✅ Frontend mounted from {frontend_path}")
 else:
-    logger.warning(f"⚠️ Frontend directory not found: {frontend_path}")
-
-# Startup info
-@app.on_event("shutdown")
-async def shutdown():
-    """Cleanup on shutdown"""
-    logger.info("🛑 Shutting down...")
+    logger.warning(f"⚠️  Frontend not found at {frontend_path}")
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("🚀 Starting AI Code Agent...")
-    logger.info("📡 Backend: http://localhost:8000")
-    logger.info("💡 Make sure OLLAMA is running: ollama serve")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    print("\n" + "="*60)
+    print("  AI Code Agent - Chat Backend")
+    print("="*60)
+    print("\n📡 Server starting at: http://localhost:8000")
+    print("\n⚠️  BEFORE USING:")
+    print("  1. Make sure OLLAMA is running: ollama serve")
+    print("  2. Install a model: ollama pull mistral")
+    print("  3. Open http://localhost:8000 in your browser")
+    print("\n" + "="*60 + "\n")
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info"
+    )
