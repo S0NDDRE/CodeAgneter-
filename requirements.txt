@@ -6,7 +6,7 @@ python-dotenv==1.0.0
 aiofiles==23.2.1
 
 # AI and Code Analysis
-ollama==0.0.50
+ollama==0.6.1
 tree-sitter==0.20.3
 tree-sitter-languages==1.10.2
 anthropic==0.7.0
