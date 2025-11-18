@@ -19,6 +19,7 @@ from agent.core.model_manager import ModelManager
 from agent.core.negotiation import NegotiationManager
 from agent.analysis.code_analyzer import CodeAnalyzer
 from agent.screen.screen_capture import ScreenCapture
+from agent.monitor.folder_monitor import FolderMonitor
 
 # Setup logging
 logging.basicConfig(
@@ -50,9 +51,11 @@ code_analyzer = CodeAnalyzer()
 screen_capture = ScreenCapture()
 model_manager = ModelManager()
 negotiation_manager = NegotiationManager()
+folder_monitor = FolderMonitor()  # Will be started on demand
 
 # Store active websocket connections
 active_connections: dict[str, WebSocket] = {}
+monitor_notifications: List[Dict[str, Any]] = []  # Store monitor notifications
 
 # Health check
 @app.get("/health")
@@ -371,6 +374,81 @@ async def get_negotiation_history():
         "status": "ok",
         "history": negotiation_manager.get_history()
     }
+
+# Folder Monitor Routes
+
+@app.post("/api/monitor/start")
+async def start_monitoring(data: dict):
+    """Start monitoring a folder"""
+    try:
+        path = data.get("path")
+        if not path:
+            raise HTTPException(status_code=400, detail="path required")
+
+        # Set watch path
+        folder_monitor.watch_path = Path(path)
+
+        # Start monitoring
+        if folder_monitor.start():
+            return {
+                "status": "started",
+                "path": path,
+                "message": f"Monitoring {path}"
+            }
+        else:
+            return {
+                "status": "error",
+                "message": f"Failed to start monitoring {path}"
+            }
+    except Exception as e:
+        logger.error(f"Monitor start error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/monitor/stop")
+async def stop_monitoring():
+    """Stop monitoring"""
+    try:
+        folder_monitor.stop()
+        return {
+            "status": "stopped",
+            "message": "Monitoring stopped"
+        }
+    except Exception as e:
+        logger.error(f"Monitor stop error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/monitor/status")
+async def monitor_status():
+    """Get monitor status"""
+    return folder_monitor.get_status()
+
+@app.get("/api/monitor/changes")
+async def get_changes(limit: int = 20):
+    """Get recent changes detected"""
+    return {
+        "status": "ok",
+        "changes": folder_monitor.get_changes(limit)
+    }
+
+@app.get("/api/monitor/analysis")
+async def get_analysis(file_path: str = None):
+    """Get analysis results"""
+    return {
+        "status": "ok",
+        "analysis": folder_monitor.get_analysis(file_path)
+    }
+
+@app.post("/api/monitor/clear")
+async def clear_history():
+    """Clear monitor history"""
+    try:
+        folder_monitor.clear_history()
+        return {
+            "status": "cleared",
+            "message": "Monitor history cleared"
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # Root route
 @app.get("/")
