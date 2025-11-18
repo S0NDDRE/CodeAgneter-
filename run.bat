@@ -1,77 +1,65 @@
 @echo off
-REM AI Code Agent Dashboard - Windows Startup Script
+setlocal enabledelayedexpansion
+
+REM AI Code Agent - Windows Startup
+REM Simple, direct, no BS
 
 echo.
-echo ╔═══════════════════════════════════════════════════╗
-echo ║    🤖 AI Code Agent Dashboard - Startup         ║
-echo ║       Smart Local Code Assistant                 ║
-echo ╚═══════════════════════════════════════════════════╝
+echo ========================================
+echo   AI Code Agent - Chat with Code
+echo ========================================
 echo.
 
 REM Check Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo ✗ Python is not installed or not in PATH
-    echo Please install Python 3.8 or higher from https://python.org
-    echo Add Python to PATH during installation
+    echo ERROR: Python not found!
+    echo Please install Python from https://python.org
+    echo (Check "Add Python to PATH" during installation)
     pause
     exit /b 1
 )
 
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo ✓ Python %PYTHON_VERSION% detected
-echo.
+echo [OK] Python %PYTHON_VERSION% found
 
-REM Create venv if it doesn't exist
+REM Create venv
 if not exist "venv" (
-    echo → Creating virtual environment...
-    python -m venv venv
+    echo [*] Creating virtual environment...
+    python -m venv venv >nul 2>&1
 )
 
 REM Activate venv
-echo → Activating virtual environment...
-call venv\Scripts\activate.bat
+call venv\Scripts\activate.bat >nul 2>&1
 
 REM Install dependencies
-if not exist ".venv_installed" (
-    echo → Installing dependencies...
+if not exist ".installed" (
+    echo [*] Installing dependencies (this takes ~30 seconds first time)...
     pip install -q -r requirements.txt
-    type nul > .venv_installed
-    echo ✓ Dependencies installed
+    if errorlevel 1 (
+        echo ERROR: pip install failed!
+        echo Make sure you have internet and Python is working
+        pause
+        exit /b 1
+    )
+    echo. > .installed
+    echo [OK] Dependencies installed
 ) else (
-    echo ✓ Dependencies already installed
+    echo [OK] Dependencies already installed
 )
 
-REM Start backend
 echo.
-echo ✓ Starting backend server...
-echo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-start "" python backend/main.py
+echo [*] Starting AI Code Agent backend...
+echo.
+echo ========================================
+echo Starting server at:
+echo   http://localhost:8000
+echo.
+echo Quit with: Ctrl+C
+echo ========================================
+echo.
 
-REM Wait for backend to start
-timeout /t 3 /nobreak
-
-echo.
-echo ✓ AI Code Agent is ready!
-echo.
-echo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-echo.
-echo Next steps:
-echo 1. Open your browser and go to:
-echo    http://localhost:8000
-echo.
-echo 2. Start using the AI Code Agent:
-echo    - Chat with the AI agent
-echo    - Analyze your code
-echo    - Capture and understand screens
-echo.
-echo 3. Keyboard shortcuts:
-echo    - Ctrl+K: Focus chat input
-echo    - Ctrl+Enter: Send message
-echo    - Ctrl+S: Save chat history
-echo.
-echo Press Ctrl+C in the backend window to stop the server
-echo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-echo.
+REM Start Python backend
+python backend/main.py
 
 pause

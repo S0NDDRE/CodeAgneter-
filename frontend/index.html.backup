@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Agent Dashboard</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+    <div id="app" class="app">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🤖</span>
+                <span class="logo-text">Code Agent</span>
+            </div>
+
+            <ul class="nav-menu">
+                <li class="nav-item active" data-page="chat">
+                    <a href="#" class="nav-link">
+                        <span class="icon">💬</span>
+                        <span>Chat</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="analyze">
+                    <a href="#" class="nav-link">
+                        <span class="icon">📊</span>
+                        <span>Analyze</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="screen">
+                    <a href="#" class="nav-link">
+                        <span class="icon">🖥️</span>
+                        <span>Screen</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="files">
+                    <a href="#" class="nav-link">
+                        <span class="icon">📁</span>
+                        <span>Files</span>
+                    </a>
+                </li>
+                <li class="nav-item" data-page="settings">
+                    <a href="#" class="nav-link">
+                        <span class="icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">Agent Ready</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 id="page-title">Chat with AI Agent</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="settings-btn">⚙️ Settings</button>
+                    <button class="btn btn-secondary" id="help-btn">❓ Help</button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-container">
+                <!-- Chat Page -->
+                <div class="page" id="chat-page" style="display: block;">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message system">
+                                <div class="message-content">
+                                    <p>👋 Welcome to AI Code Agent!</p>
+                                    <p>I can help you with:</p>
+                                    <ul>
+                                        <li>💻 Code analysis and understanding</li>
+                                        <li>🐛 Bug detection and fixing</li>
+                                        <li>✨ Code generation and completion</li>
+                                        <li>📊 Project analysis</li>
+                                        <li>🔍 Code review and optimization</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-area">
+                            <div class="input-actions">
+                                <button class="btn-icon" title="Attach file" id="attach-btn">📎</button>
+                                <button class="btn-icon" title="Code mode" id="code-btn">{'}'}</button>
+                                <button class="btn-icon" title="Screen capture" id="screen-btn">🖥️</button>
+                            </div>
+                            <textarea
+                                id="chat-input"
+                                class="chat-input"
+                                placeholder="Ask me anything... (Ctrl+Enter to send)"
+                                rows="3"
+                            ></textarea>
+                            <button class="btn btn-primary" id="send-btn">Send (Ctrl+Enter)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analyze Page -->
+                <div class="page" id="analyze-page" style="display: none;">
+                    <div class="analyze-container">
+                        <div class="analyze-upload">
+                            <div class="upload-area" id="upload-area">
+                                <p>📤 Drop code file here or click to select</p>
+                            </div>
+                            <input type="file" id="file-input" style="display: none;">
+                        </div>
+
+                        <div class="analyze-project">
+                            <label>Or analyze entire project:</label>
+                            <div class="input-group">
+                                <input type="text" id="project-path" placeholder="/path/to/project" class="form-input">
+                                <button class="btn btn-primary" id="analyze-btn">Analyze Project</button>
+                            </div>
+                        </div>
+
+                        <div id="analysis-results" class="analysis-results"></div>
+                    </div>
+                </div>
+
+                <!-- Screen Page -->
+                <div class="page" id="screen-page" style="display: none;">
+                    <div class="screen-container">
+                        <div class="screen-controls">
+                            <button class="btn btn-primary" id="capture-btn">📸 Capture Screen</button>
+                            <button class="btn btn-secondary" id="analyze-screen-btn">Analyze Screen</button>
+                        </div>
+
+                        <div class="screen-display">
+                            <img id="screenshot" style="display: none; max-width: 100%; border-radius: 8px;">
+                            <div id="screen-placeholder" class="screen-placeholder">
+                                No screenshot yet. Click "Capture Screen" to get started!
+                            </div>
+                        </div>
+
+                        <div id="screen-analysis" class="screen-analysis" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Files Page -->
+                <div class="page" id="files-page" style="display: none;">
+                    <div class="files-container">
+                        <div class="files-header">
+                            <input type="text" id="path-input" class="form-input" placeholder="Enter directory path">
+                            <button class="btn btn-primary" id="browse-btn">Browse</button>
+                        </div>
+
+                        <div id="file-tree" class="file-tree"></div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div class="page" id="settings-page" style="display: none;">
+                    <div class="settings-container">
+                        <div class="settings-section">
+                            <h3>Agent Settings</h3>
+                            <label class="setting-item">
+                                <span>Model:</span>
+                                <select id="model-select" class="form-input">
+                                    <option value="neural-chat">Neural Chat</option>
+                                    <option value="codellama">Code Llama</option>
+                                    <option value="mistral">Mistral</option>
+                                </select>
+                            </label>
+
+                            <label class="setting-item">
+                                <span>Response Speed:</span>
+                                <input type="range" id="speed-slider" min="1" max="10" value="5">
+                            </label>
+
+                            <label class="setting-item">
+                                <input type="checkbox" id="auto-save" checked>
+                                <span>Auto-save chat history</span>
+                            </label>
+
+                            <label class="setting-item">
+                                <input type="checkbox" id="syntax-highlight" checked>
+                                <span>Syntax highlighting</span>
+                            </label>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Security</h3>
+                            <label class="setting-item">
+                                <input type="checkbox" id="require-approval" checked>
+                                <span>Require approval for file operations</span>
+                            </label>
+
+                            <label class="setting-item">
+                                <input type="checkbox" id="code-sandbox" checked>
+                                <span>Run code in sandbox</span>
+                            </label>
+                        </div>
+
+                        <div class="settings-section">
+                            <button class="btn btn-danger" id="clear-history-btn">Clear Chat History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal for approvals -->
+        <div id="approval-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Confirmation Required</h3>
+                <p id="approval-message"></p>
+                <div class="modal-actions">
+                    <button class="btn btn-danger" id="deny-btn">Deny</button>
+                    <button class="btn btn-primary" id="approve-btn">Approve</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading spinner -->
+        <div id="loading-spinner" class="loading-spinner" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Toast notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="src/utils/api.js"></script>
+    <script src="src/components/chat-enhanced.js"></script>
+    <script src="src/components/analyzer.js"></script>
+    <script src="src/components/screen.js"></script>
+    <script src="src/components/files.js"></script>
+    <script src="src/components/models.js"></script>
+    <script src="src/components/monitor.js"></script>
+    <script src="src/utils/ui.js"></script>
+    <script src="src/app.js"></script>
+</body>
+</html>
